@@ -21,7 +21,7 @@ export const useSocket = (sessionId: string) => {
 
     socket.on('status', (newStatus) => {
       setStatus(newStatus);
-      if (newStatus === 'open') setQr(null);
+      if (newStatus !== 'connecting') setQr(null);
     });
 
     socket.on('qr', (newQr) => {
@@ -40,10 +40,14 @@ export const useSocket = (sessionId: string) => {
   }, [sessionId]);
 
   const connect = () => {
+    setQr(null);
+    setStatus('connecting');
     socketRef.current?.emit('connect_wa', sessionId);
   };
 
   const disconnect = () => {
+    setQr(null);
+    setStatus('close');
     socketRef.current?.emit('disconnect_wa', sessionId);
   };
 
