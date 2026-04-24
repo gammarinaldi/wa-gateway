@@ -2,7 +2,8 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import next from 'next';
-import { connectToWhatsApp, disconnectFromWhatsApp } from './lib/whatsapp/connection.js';
+import { connectToWhatsApp, disconnectFromWhatsApp, sendWhatsAppMessage } from './lib/whatsapp/connection.js';
+import multer from 'multer';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -60,6 +61,27 @@ app.prepare().then(async () => {
     socket.on('disconnect_wa', async (sessionId) => {
       await disconnectFromWhatsApp(sessionId);
     });
+  });
+
+  const upload = multer({ storage: multer.memoryStorage() });
+
+  server.post('/api/send', upload.single('file'), async (req, res) => {
+    try {
+      const { jid, text, sessionId = 'default-user' } = req.body;
+      const file = req.file;
+
+      const result = await sendWhatsAppMessage(sessionId, jid, {
+        text,
+        file: file?.buffer,
+        fileName: file?.originalname,
+        mimetype: file?.mimetype
+      });
+
+      res.json({ success: true, messageId: result?.key.id });
+    } catch (error: any) {
+      console.error('API Send Error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
   });
 
   server.all('*', (req, res) => {
