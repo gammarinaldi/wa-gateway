@@ -91,7 +91,7 @@ export const connectToWhatsApp = async (sessionId: string, io: Server) => {
 
   sock.ev.on('messages.upsert', async (m) => {
     const msg = m.messages[0];
-    if (!msg.key.fromMe && m.type === 'notify') {
+    if (m.type === 'notify') {
       const content = msg.message?.conversation || 
                       msg.message?.extendedTextMessage?.text || 
                       msg.message?.imageMessage?.caption || "";
@@ -100,8 +100,9 @@ export const connectToWhatsApp = async (sessionId: string, io: Server) => {
         data: {
           sessionId,
           remoteJid: msg.key.remoteJid!,
-          pushName: msg.pushName || "Unknown",
+          pushName: msg.pushName || (msg.key.fromMe ? "Me" : "Unknown"),
           content,
+          fromMe: msg.key.fromMe ?? false,
           timestamp: new Date((msg.messageTimestamp as number) * 1000)
         }
       });

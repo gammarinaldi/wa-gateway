@@ -30,5 +30,6 @@ model Message {
   remoteJid String
   pushName  String?
   content   String?  @db.Text
+  fromMe    Boolean  @default(false)
   timestamp DateTime @default(now())
 }
