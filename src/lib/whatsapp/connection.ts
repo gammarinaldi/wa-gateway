@@ -132,12 +132,20 @@ export const sendWhatsAppMessage = async (
 
   if (content.file) {
     const isImage = content.mimetype?.startsWith('image/');
-    return await sock.sendMessage(jid, {
-      [isImage ? 'image' : 'document']: content.file,
-      caption: content.text,
-      mimetype: content.mimetype,
-      fileName: content.fileName
-    });
+    if (isImage) {
+      return await sock.sendMessage(jid, {
+        image: content.file,
+        caption: content.text,
+        mimetype: content.mimetype || 'image/jpeg',
+      });
+    } else {
+      return await sock.sendMessage(jid, {
+        document: content.file,
+        caption: content.text,
+        mimetype: content.mimetype || 'application/octet-stream',
+        fileName: content.fileName || 'file'
+      });
+    }
   } else {
     return await sock.sendMessage(jid, { text: content.text || '' });
   }
