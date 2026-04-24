@@ -8,6 +8,40 @@ export default function Dashboard() {
   const sessionId = 'default-user'; // In a real app, this would be dynamic
   const { status, qr, messages, connect, disconnect } = useSocket(sessionId);
   const [selectedJid, setSelectedJid] = useState<string | null>(null);
+  const [inputText, setInputText] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!selectedJid || (!inputText.trim() && !selectedFile)) return;
+    
+    setIsSending(true);
+    try {
+      const formData = new FormData();
+      formData.append('jid', selectedJid);
+      formData.append('sessionId', sessionId);
+      if (inputText) formData.append('text', inputText);
+      if (selectedFile) formData.append('file', selectedFile);
+
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setInputText('');
+        setSelectedFile(null);
+      } else {
+        alert('Failed to send: ' + data.error);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      alert('Error sending message. Check console.');
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   // Group messages by remoteJid
   const groupedMessages = useMemo(() => {
@@ -127,17 +161,79 @@ export default function Dashboard() {
                   <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{selectedChat.name}</div>
                   <div style={{ fontSize: '12px', color: '#848E9C' }}>{selectedJid}</div>
                 </div>
-                <div className="message-list" style={{ padding: '24px', maxHeight: '500px', overflowY: 'auto', display: 'flex', flexDirection: 'column-reverse' }}>
+                <div className="message-list" style={{ padding: '24px', height: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column-reverse', background: '#FFFFFF' }}>
                   {selectedChat.messages.map((msg) => (
-                    <div key={msg.id} className="message-item" style={{ marginBottom: '16px', maxWidth: '80%', alignSelf: 'flex-start', borderBottom: 'none', padding: 0 }}>
-                      <div className="message-content" style={{ background: 'white', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E6E8EA', boxShadow: 'rgba(32, 32, 37, 0.05) 0px 3px 5px 0px' }}>
+                    <div key={msg.id} className="message-item" style={{ 
+                      marginBottom: '16px', 
+                      maxWidth: '80%', 
+                      alignSelf: msg.fromMe ? 'flex-end' : 'flex-start', 
+                      borderBottom: 'none', 
+                      padding: 0 
+                    }}>
+                      <div className="message-content" style={{ 
+                        background: msg.fromMe ? '#FFF9E6' : 'white', 
+                        padding: '12px 16px', 
+                        borderRadius: '12px', 
+                        border: '1px solid',
+                        borderColor: msg.fromMe ? '#F8D12F' : '#E6E8EA',
+                        boxShadow: 'rgba(32, 32, 37, 0.05) 0px 3px 5px 0px',
+                        color: 'var(--ink)'
+                      }}>
                         {msg.content}
-                        <div style={{ fontSize: '10px', color: '#848E9C', marginTop: '4px', textAlign: 'right' }}>
-                          {new Date(msg.timestamp).toLocaleTimeString()}
+                        <div style={{ fontSize: '10px', color: '#848E9C', marginTop: '4px', textAlign: msg.fromMe ? 'left' : 'right' }}>
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                     </div>
                   ))}
+                </div>
+                
+                <div className="chat-footer" style={{ padding: '16px 24px', background: '#F5F5F5', borderTop: '1px solid #E6E8EA', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+                  {selectedFile && (
+                    <div style={{ marginBottom: '8px', background: 'white', padding: '4px 8px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', border: '1px solid #F0B90B' }}>
+                      <span>📎 {selectedFile.name}</span>
+                      <button onClick={() => setSelectedFile(null)} style={{ border: 'none', background: 'none', color: '#F6465D', cursor: 'pointer', padding: '4px' }}>✕</button>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <label style={{ cursor: 'pointer', color: '#848E9C', padding: '8px', borderRadius: '8px', background: 'white', border: '1px solid #E6E8EA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <input 
+                        type="file" 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      />
+                      <span style={{ fontSize: '18px' }}>📎</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      placeholder="Type a message..."
+                      style={{ 
+                        flex: 1, 
+                        padding: '12px 16px', 
+                        borderRadius: '8px', 
+                        border: '1px solid #E6E8EA', 
+                        outline: 'none',
+                        fontSize: '14px'
+                      }}
+                      disabled={isSending}
+                    />
+                    <button 
+                      onClick={handleSend}
+                      disabled={isSending || (!inputText.trim() && !selectedFile)}
+                      className="btn-primary"
+                      style={{ 
+                        padding: '10px 24px', 
+                        borderRadius: '50px',
+                        opacity: (isSending || (!inputText.trim() && !selectedFile)) ? 0.5 : 1,
+                        cursor: (isSending || (!inputText.trim() && !selectedFile)) ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {isSending ? 'Sending...' : 'Send'}
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
