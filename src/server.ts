@@ -6,6 +6,8 @@ import { WhatsAppGateway } from './lib/core/index.js';
 import multer from 'multer';
 import dotenv from 'dotenv';
 import { authMiddleware } from './middleware/auth.js';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
 
 dotenv.config();
 
@@ -70,16 +72,79 @@ app.prepare().then(async () => {
   const upload = multer({ storage: multer.memoryStorage() });
   server.use(express.json());
 
+  // Swagger Configuration
+  const swaggerOptions = {
+    definition: {
+      openapi: '3.0.0',
+      info: {
+        title: 'WhatsApp Gateway API',
+        version: '1.1.0',
+        description: 'Professional WhatsApp Gateway API for business integration',
+      },
+      servers: [
+        { url: `http://localhost:${port}` },
+      ],
+      components: {
+        securitySchemes: {
+          ApiKeyAuth: {
+            type: 'apiKey',
+            in: 'header',
+            name: 'x-api-key',
+          },
+        },
+      },
+    },
+    apis: ['./src/server.ts'],
+  };
+
+  const swaggerSpec = swaggerJsdoc(swaggerOptions);
+  server.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
   // API Routes with Authentication
   const apiRouter = express.Router();
   apiRouter.use(authMiddleware);
 
-  // Session Management
+  /**
+   * @openapi
+   * /api/v1/sessions/{sessionId}/status:
+   *   get:
+   *     summary: Get session connection status
+   *     tags: [Sessions]
+   *     security:
+   *       - ApiKeyAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: sessionId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Success
+   */
   apiRouter.get('/sessions/:sessionId/status', (req, res) => {
     const { sessionId } = req.params;
     res.json({ success: true, sessionId, status: gateway.getStatus(sessionId) });
   });
 
+  /**
+   * @openapi
+   * /api/v1/sessions/{sessionId}/init:
+   *   post:
+   *     summary: Initialize WhatsApp connection
+   *     tags: [Sessions]
+   *     security:
+   *       - ApiKeyAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: sessionId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Success
+   */
   apiRouter.post('/sessions/:sessionId/init', async (req, res) => {
     const { sessionId } = req.params;
     try {
@@ -102,7 +167,30 @@ app.prepare().then(async () => {
     }
   });
 
-  // Messaging
+  /**
+   * @openapi
+   * /api/v1/messages/send:
+   *   post:
+   *     summary: Send a WhatsApp message
+   *     tags: [Messages]
+   *     security:
+   *       - ApiKeyAuth: []
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               jid:
+   *                 type: string
+   *               text:
+   *                 type: string
+   *               sessionId:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Success
+   */
   apiRouter.post('/messages/send', upload.single('file'), async (req, res) => {
     try {
       const { jid, text, sessionId = 'default-user' } = req.body;

@@ -97,6 +97,10 @@ All requests require the `X-API-Key` header.
 - **Messaging**: `POST /api/v1/messages/send`
 - **Sessions**: `POST /api/v1/sessions/:id/init`, `GET /api/v1/sessions/:id/status`
 
+### Interactive API Docs
+Once the server is running, you can access the interactive Swagger UI at:
+`http://localhost:3000/api-docs`
+
 ### Webhooks
 Configure `WEBHOOK_URL` to receive:
 - `message.received`: New incoming messages.

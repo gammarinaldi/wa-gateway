@@ -25,6 +25,7 @@ export type WebhookEvent = 'message.received' | 'connection.update' | 'qr.receiv
 export class WhatsAppGateway {
   public sessions = new Map<string, WASocket>();
   public sessionStates = new Map<string, string>();
+  private retryCount = new Map<string, number>();
   private prisma: PrismaClient;
   private redisClient: any;
   private config: GatewayConfig;
@@ -102,19 +103,33 @@ export class WhatsAppGateway {
       }
 
       if (connection === 'close') {
-        const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        
         if (options?.onUpdate) options.onUpdate('status', 'close');
         
         if (shouldReconnect) {
-          this.connect(sessionId, options);
+          const retries = this.retryCount.get(sessionId) || 0;
+          if (retries < 5) {
+            const delay = Math.pow(2, retries) * 1000;
+            console.log(`Connection closed for ${sessionId}. Retrying in ${delay/1000}s... (Attempt ${retries + 1}/5)`);
+            this.retryCount.set(sessionId, retries + 1);
+            setTimeout(() => this.connect(sessionId, options), delay);
+          } else {
+            console.log(`Max retries reached for ${sessionId}.`);
+            this.retryCount.delete(sessionId);
+            await this.dispatchWebhook('connection.update', sessionId, { status: 'failed', reason: 'max_retries' });
+          }
         } else {
           this.sessions.delete(sessionId);
           this.sessionStates.delete(sessionId);
+          this.retryCount.delete(sessionId);
           await this.prisma.session.delete({ where: { userId: sessionId } }).catch(() => {});
           await this.prisma.key.deleteMany({ where: { sessionId } }).catch(() => {});
         }
       } else if (connection === 'open') {
         this.sessionStates.set(sessionId, 'open');
+        this.retryCount.delete(sessionId);
         if (options?.onUpdate) options.onUpdate('status', 'open');
         await this.dispatchWebhook('connection.update', sessionId, { status: 'open' });
       } else if (connection === 'connecting') {
@@ -132,6 +147,16 @@ export class WhatsAppGateway {
                     msg.message?.extendedTextMessage?.text || 
                     msg.message?.imageMessage?.caption || "";
       
+      // Handle Reactions
+      if (msg.message?.reactionMessage) {
+        content = `REACTION: ${msg.message.reactionMessage.text}`;
+      }
+      
+      // Handle Polls
+      if (msg.message?.pollCreationMessage) {
+        content = `POLL: ${msg.message.pollCreationMessage.name}`;
+      }
+
       if (!content) {
         if (msg.message?.imageMessage) content = "📷 Image";
         else if (msg.message?.documentMessage) content = "📄 Document";

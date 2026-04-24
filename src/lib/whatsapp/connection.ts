@@ -1,10 +1,6 @@
-import makeWASocket, { 
-  DisconnectReason, 
-  useMultiFileAuthState, 
-  Browsers, 
-  makeCacheableSignalKeyStore,
+import makeWASocket, {
+  DisconnectReason,
   WASocket,
-  AuthenticationState,
   ConnectionState,
   fetchLatestWaWebVersion
 } from '@whiskeysockets/baileys';
@@ -47,7 +43,7 @@ export const connectToWhatsApp = async (sessionId: string, io?: Server) => {
   const { state, saveCreds } = await usePrismaAuthState(sessionId);
   const { version, isLatest } = await fetchLatestWaWebVersion({});
   console.log(`Using WA version: ${version.join('.')}, isLatest: ${isLatest}`);
-  
+
   const redis = await getRedisClient();
 
   console.log(`Starting WhatsApp connection for session: ${sessionId}`);
@@ -75,14 +71,14 @@ export const connectToWhatsApp = async (sessionId: string, io?: Server) => {
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
       if (io) io.to(sessionId).emit('status', 'close');
-      
+
       if (shouldReconnect) {
         connectToWhatsApp(sessionId, io);
       } else {
         sessions.delete(sessionId);
         sessionStates.delete(sessionId);
-        await prisma.session.delete({ where: { userId: sessionId } }).catch(() => {});
-        await prisma.key.deleteMany({ where: { sessionId } }).catch(() => {});
+        await prisma.session.delete({ where: { userId: sessionId } }).catch(() => { });
+        await prisma.key.deleteMany({ where: { sessionId } }).catch(() => { });
       }
     } else if (connection === 'open') {
       sessionStates.set(sessionId, 'open');
@@ -97,14 +93,14 @@ export const connectToWhatsApp = async (sessionId: string, io?: Server) => {
 
   sock.ev.on('messages.upsert', async (m) => {
     const msg = m.messages[0];
-    
+
     // Ignore protocol messages
     if (!msg.message || (m.type !== 'notify' && m.type !== 'append')) return;
 
-    let content = msg.message?.conversation || 
-                  msg.message?.extendedTextMessage?.text || 
-                  msg.message?.imageMessage?.caption || "";
-    
+    let content = msg.message?.conversation ||
+      msg.message?.extendedTextMessage?.text ||
+      msg.message?.imageMessage?.caption || "";
+
     // If it's a media message without caption, provide a placeholder
     if (!content) {
       if (msg.message?.imageMessage) content = "📷 Image";
@@ -135,10 +131,10 @@ export const connectToWhatsApp = async (sessionId: string, io?: Server) => {
   sock.ev.on('messaging-history.set', async ({ messages: historyMessages }) => {
     console.log(`Received history sync: ${historyMessages.length} messages`);
     for (const msg of historyMessages) {
-      const content = msg.message?.conversation || 
-                      msg.message?.extendedTextMessage?.text || 
-                      msg.message?.imageMessage?.caption || "";
-      
+      const content = msg.message?.conversation ||
+        msg.message?.extendedTextMessage?.text ||
+        msg.message?.imageMessage?.caption || "";
+
       if (content && msg.key.remoteJid) {
         await prisma.message.upsert({
           where: { id: msg.key.id! }, // Using message ID as unique identifier
@@ -152,7 +148,7 @@ export const connectToWhatsApp = async (sessionId: string, io?: Server) => {
             fromMe: msg.key.fromMe ?? false,
             timestamp: new Date((msg.messageTimestamp as number) * 1000)
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   });
@@ -169,8 +165,8 @@ export const disconnectFromWhatsApp = async (sessionId: string) => {
 };
 
 export const sendWhatsAppMessage = async (
-  sessionId: string, 
-  jid: string, 
+  sessionId: string,
+  jid: string,
   content: { text?: string; file?: Buffer; fileName?: string; mimetype?: string }
 ) => {
   const sock = sessions.get(sessionId);
