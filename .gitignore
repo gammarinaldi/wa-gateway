@@ -42,3 +42,6 @@ yarn-error.log*
 
 # Git Worktrees
 .worktrees/
+
+# Git Worktrees
+.worktrees/
