@@ -54,6 +54,7 @@ Once published or linked, you can use the core class in any Node.js project:
 import { WhatsAppGateway } from 'whatsapp-gateway';
 
 const gateway = new WhatsAppGateway({
+  databaseUrl: 'postgresql://...',
   redisUrl: 'redis://localhost:6379',
   webhookUrl: 'https://your-api.com/webhook'
 });

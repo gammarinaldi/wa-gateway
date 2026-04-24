@@ -103,6 +103,20 @@ Configure `WEBHOOK_URL` to receive:
 - `connection.update`: WhatsApp connection status changes.
 - `qr.received`: New QR codes for authentication.
 
+### Library Usage
+You can also use the core logic as a library in your Node project:
+```typescript
+import { WhatsAppGateway } from 'whatsapp-gateway';
+
+const gateway = new WhatsAppGateway({
+  databaseUrl: process.env.DATABASE_URL,
+  redisUrl: process.env.REDIS_URL,
+  webhookUrl: 'https://your-api.com/webhook'
+});
+
+await gateway.connect('my-session');
+```
+
 For detailed documentation, see [API Walkthrough](docs/superpowers/api-walkthrough.md).
 
 ---
