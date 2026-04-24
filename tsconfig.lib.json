@@ -14,5 +14,5 @@
     "allowJs": true
   },
   "include": ["src/lib/core/**/*", "src/lib/whatsapp/auth.ts"],
-  "exclude": ["node_modules", "src/app", "src/components"]
+  "exclude": ["node_modules", "src/app", "src/components", "**/__tests__/*"]
 }

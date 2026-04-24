@@ -1,4 +1,5 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import type { WhatsAppGateway as WhatsAppGatewayType } from '../index.js';
 
 // Mock dependencies
 jest.unstable_mockModule('@prisma/client', () => {
@@ -20,7 +21,7 @@ jest.unstable_mockModule('redis', () => ({
 const { WhatsAppGateway } = await import('../index.js');
 
 describe('WhatsAppGateway', () => {
-  let gateway: WhatsAppGateway;
+  let gateway: WhatsAppGatewayType;
   const config = {
     redisUrl: 'redis://localhost:6379',
     databaseUrl: 'postgresql://localhost:5432/test'
