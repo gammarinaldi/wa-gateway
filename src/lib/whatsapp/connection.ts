@@ -91,11 +91,25 @@ export const connectToWhatsApp = async (sessionId: string, io: Server) => {
 
   sock.ev.on('messages.upsert', async (m) => {
     const msg = m.messages[0];
-    if (m.type === 'notify') {
-      const content = msg.message?.conversation || 
-                      msg.message?.extendedTextMessage?.text || 
-                      msg.message?.imageMessage?.caption || "";
-      
+    
+    // Ignore protocol messages
+    if (!msg.message || (m.type !== 'notify' && m.type !== 'append')) return;
+
+    let content = msg.message?.conversation || 
+                  msg.message?.extendedTextMessage?.text || 
+                  msg.message?.imageMessage?.caption || "";
+    
+    // If it's a media message without caption, provide a placeholder
+    if (!content) {
+      if (msg.message?.imageMessage) content = "📷 Image";
+      else if (msg.message?.documentMessage) content = "📄 Document";
+      else if (msg.message?.videoMessage) content = "🎥 Video";
+      else if (msg.message?.audioMessage) content = "🎵 Audio";
+      else if (msg.message?.stickerMessage) content = "🏷️ Sticker";
+    }
+
+    // Only save if there is content or it's a known media type
+    if (content || msg.message?.imageMessage || msg.message?.documentMessage) {
       const savedMsg = await prisma.message.create({
         data: {
           sessionId,
@@ -108,6 +122,31 @@ export const connectToWhatsApp = async (sessionId: string, io: Server) => {
       });
 
       io.to(sessionId).emit('message', savedMsg);
+    }
+  });
+
+  sock.ev.on('messaging-history.set', async ({ messages: historyMessages }) => {
+    console.log(`Received history sync: ${historyMessages.length} messages`);
+    for (const msg of historyMessages) {
+      const content = msg.message?.conversation || 
+                      msg.message?.extendedTextMessage?.text || 
+                      msg.message?.imageMessage?.caption || "";
+      
+      if (content && msg.key.remoteJid) {
+        await prisma.message.upsert({
+          where: { id: msg.key.id! }, // Using message ID as unique identifier
+          update: {},
+          create: {
+            id: msg.key.id!,
+            sessionId,
+            remoteJid: msg.key.remoteJid,
+            pushName: msg.pushName || (msg.key.fromMe ? "Me" : "Unknown"),
+            content,
+            fromMe: msg.key.fromMe ?? false,
+            timestamp: new Date((msg.messageTimestamp as number) * 1000)
+          }
+        }).catch(() => {});
+      }
     }
   });
 

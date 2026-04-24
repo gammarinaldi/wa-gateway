@@ -58,12 +58,15 @@ export default function Dashboard() {
       const jid = msg.remoteJid;
       if (!groups[jid]) {
         groups[jid] = {
-          name: msg.pushName || jid.split('@')[0],
+          name: (msg.fromMe ? null : msg.pushName) || jid.split('@')[0],
           latestMessage: msg.content,
           timestamp: msg.timestamp,
           count: 0,
           messages: [],
         };
+      } else if (!msg.fromMe && msg.pushName && groups[jid].name === jid.split('@')[0]) {
+        // Update name if we previously only had the JID/Me and now we have a real pushName
+        groups[jid].name = msg.pushName;
       }
       groups[jid].messages.push(msg);
       groups[jid].count++;
@@ -98,20 +101,23 @@ export default function Dashboard() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px' }}>
-            <button
-              className="btn-primary"
-              onClick={connect}
-              disabled={status === 'open' || status === 'connecting'}
-            >
-              {status === 'connecting' ? 'Connecting...' : 'Connect WhatsApp'}
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={disconnect}
-              disabled={status === 'close' || status === 'idle'}
-            >
-              Disconnect
-            </button>
+            {status !== 'open' && (
+              <button
+                className="btn-primary"
+                onClick={connect}
+                disabled={status === 'connecting'}
+              >
+                {status === 'connecting' ? 'Connecting...' : 'Connect WhatsApp'}
+              </button>
+            )}
+            {(status === 'open' || status === 'connecting') && (
+              <button
+                className="btn-secondary"
+                onClick={disconnect}
+              >
+                Disconnect
+              </button>
+            )}
           </div>
 
           {qr && status !== 'open' && (
