@@ -1,5 +1,5 @@
 {
-  "name": "whatsapp-gateway",
+  "name": "@gammarinaldi/wa-gateway",
   "version": "1.0.0",
   "private": false,
   "main": "dist/lib/core/index.js",
