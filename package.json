@@ -1,11 +1,18 @@
 {
   "name": "whatsapp-gateway",
   "version": "1.0.0",
-  "private": true,
+  "private": false,
+  "main": "dist/lib/core/index.js",
+  "types": "dist/lib/core/index.d.ts",
+  "files": [
+    "dist",
+    "prisma"
+  ],
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "next build && tsc src/server.ts --outDir dist --esModuleInterop --moduleResolution bundler --module esnext --target esnext --allowJs --skipLibCheck",
+    "build": "next build && tsc --project tsconfig.lib.json",
+    "build:server": "tsc src/server.ts --outDir dist --esModuleInterop --moduleResolution bundler --module esnext --target esnext --allowJs --skipLibCheck",
     "start": "NODE_ENV=production node dist/server.js",
     "lint": "next lint",
     "postinstall": "prisma generate"
@@ -14,6 +21,7 @@
     "@adiwajshing/keyed-db": "^0.2.4",
     "@prisma/client": "^6.0.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "axios": "^1.15.2",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "multer": "^2.1.1",

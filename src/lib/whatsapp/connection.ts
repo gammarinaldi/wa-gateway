@@ -14,6 +14,8 @@ import { createClient } from 'redis';
 import pino from 'pino';
 import { usePrismaAuthState } from './auth.js';
 import { Server } from 'socket.io';
+import { dispatchWebhook } from '../webhook/webhook.js';
+
 
 const logger = pino({ level: 'debug' });
 const prisma = new PrismaClient();
@@ -31,7 +33,8 @@ const getRedisClient = async () => {
 export const sessions = new Map<string, WASocket>();
 export const sessionStates = new Map<string, string>();
 
-export const connectToWhatsApp = async (sessionId: string, io: Server) => {
+export const connectToWhatsApp = async (sessionId: string, io?: Server) => {
+
   if (sessions.has(sessionId)) {
     console.log(`Session ${sessionId} already exists, ending it before restart...`);
     const oldSock = sessions.get(sessionId);
@@ -65,12 +68,13 @@ export const connectToWhatsApp = async (sessionId: string, io: Server) => {
 
     if (qr) {
       console.log(`QR received for session: ${sessionId}`);
-      io.to(sessionId).emit('qr', qr);
+      if (io) io.to(sessionId).emit('qr', qr);
+      await dispatchWebhook('qr.received', sessionId, { qr });
     }
 
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-      io.to(sessionId).emit('status', 'close');
+      if (io) io.to(sessionId).emit('status', 'close');
       
       if (shouldReconnect) {
         connectToWhatsApp(sessionId, io);
@@ -82,10 +86,12 @@ export const connectToWhatsApp = async (sessionId: string, io: Server) => {
       }
     } else if (connection === 'open') {
       sessionStates.set(sessionId, 'open');
-      io.to(sessionId).emit('status', 'open');
+      if (io) io.to(sessionId).emit('status', 'open');
+      await dispatchWebhook('connection.update', sessionId, { status: 'open' });
     } else if (connection === 'connecting') {
       sessionStates.set(sessionId, 'connecting');
-      io.to(sessionId).emit('status', 'connecting');
+      if (io) io.to(sessionId).emit('status', 'connecting');
+      await dispatchWebhook('connection.update', sessionId, { status: 'connecting' });
     }
   });
 
@@ -121,7 +127,8 @@ export const connectToWhatsApp = async (sessionId: string, io: Server) => {
         }
       });
 
-      io.to(sessionId).emit('message', savedMsg);
+      if (io) io.to(sessionId).emit('message', savedMsg);
+      await dispatchWebhook('message.received', sessionId, savedMsg);
     }
   });
 

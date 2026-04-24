@@ -7,10 +7,11 @@ A light-weight, containerized WhatsApp Gateway built with **Next.js 15**, **Bail
 ## ✨ Key Features
 
 - **Multi-Session Management**: Connect and manage multiple WhatsApp accounts simultaneously.
-- **Real-time Dashboard**: Live message logger and connection status updates using Socket.io.
-- **Modern Tech Stack**: Built with Next.js 15, Express, Redis, and PostgreSQL.
-- **Production-Ready**: Containerized with Docker for easy deployment and scaling.
-- **High Performance**: Optimized with Redis for caching and session management.
+- **Service-Oriented API (v1)**: Robust REST endpoints for session management and messaging.
+- **Webhook Gateway**: Real-time event forwarding (messages, status, QR) to external services.
+- **Library & Headless Mode**: Use core WhatsApp logic in any Node.js project.
+- **Real-time Dashboard**: Live message logger and connection status updates.
+- **Production-Ready**: Containerized with Docker, Redis, and PostgreSQL.
 
 ---
 
@@ -51,6 +52,11 @@ Copy the example environment file and update the values as needed:
 cp .env.example .env
 ```
 
+Key integration variables:
+- `WEBHOOK_URL`: URL to receive incoming message events.
+- `API_KEY`: Key to authorize your REST API requests.
+- `API_SECRET`: Secret to verify webhook payloads.
+
 ### 3. Running with Docker (Recommended)
 The easiest way to get started is using Docker Compose:
 ```bash
@@ -79,6 +85,25 @@ If you prefer to run the app directly on your host:
    ```bash
    npm run dev
    ```
+
+---
+
+## 🔌 API & Integration
+
+The gateway is designed to be integrated with external services (AI Services, Auth Services, etc.).
+
+### REST API (v1)
+All requests require the `X-API-Key` header.
+- **Messaging**: `POST /api/v1/messages/send`
+- **Sessions**: `POST /api/v1/sessions/:id/init`, `GET /api/v1/sessions/:id/status`
+
+### Webhooks
+Configure `WEBHOOK_URL` to receive:
+- `message.received`: New incoming messages.
+- `connection.update`: WhatsApp connection status changes.
+- `qr.received`: New QR codes for authentication.
+
+For detailed documentation, see [API Walkthrough](docs/superpowers/api-walkthrough.md).
 
 ---
 

@@ -2,9 +2,10 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import next from 'next';
-import { connectToWhatsApp, disconnectFromWhatsApp, sendWhatsAppMessage } from './lib/whatsapp/connection.js';
+import { WhatsAppGateway } from './lib/core/index.js';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import { authMiddleware } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -31,46 +32,83 @@ app.prepare().then(async () => {
   });
 
   const prisma = new (await import('@prisma/client')).PrismaClient();
+  const gateway = new WhatsAppGateway({
+    webhookUrl: process.env.WEBHOOK_URL,
+    apiSecret: process.env.API_SECRET,
+    redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+    databaseUrl: process.env.DATABASE_URL
+  });
 
   io.on('connection', (socket) => {
     socket.on('join', async (sessionId) => {
       socket.join(sessionId);
       console.log(`User joined session: ${sessionId}`);
 
-      // Send last 50 messages
       const messages = await prisma.message.findMany({
         where: { sessionId },
         orderBy: { timestamp: 'desc' },
         take: 50,
       });
 
-      // Find current session status
-      const { sessionStates } = await import('./lib/whatsapp/connection.js');
-      const status = sessionStates.get(sessionId) || 'idle';
-
       socket.emit('initial_data', { 
         messages: messages.reverse(),
-        status 
+        status: gateway.getStatus(sessionId)
       });
     });
 
     socket.on('connect_wa', async (sessionId) => {
-      await connectToWhatsApp(sessionId, io);
+      await gateway.connect(sessionId, {
+        onUpdate: (event, data) => io.to(sessionId).emit(event, data)
+      });
     });
 
     socket.on('disconnect_wa', async (sessionId) => {
-      await disconnectFromWhatsApp(sessionId);
+      await gateway.logout(sessionId);
     });
   });
 
   const upload = multer({ storage: multer.memoryStorage() });
+  server.use(express.json());
 
-  server.post('/api/send', upload.single('file'), async (req, res) => {
+  // API Routes with Authentication
+  const apiRouter = express.Router();
+  apiRouter.use(authMiddleware);
+
+  // Session Management
+  apiRouter.get('/sessions/:sessionId/status', (req, res) => {
+    const { sessionId } = req.params;
+    res.json({ success: true, sessionId, status: gateway.getStatus(sessionId) });
+  });
+
+  apiRouter.post('/sessions/:sessionId/init', async (req, res) => {
+    const { sessionId } = req.params;
+    try {
+      await gateway.connect(sessionId, {
+        onUpdate: (event, data) => io.to(sessionId).emit(event, data)
+      });
+      res.json({ success: true, message: 'Initialization started' });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  apiRouter.post('/sessions/:sessionId/logout', async (req, res) => {
+    const { sessionId } = req.params;
+    try {
+      await gateway.logout(sessionId);
+      res.json({ success: true, message: 'Logged out successfully' });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Messaging
+  apiRouter.post('/messages/send', upload.single('file'), async (req, res) => {
     try {
       const { jid, text, sessionId = 'default-user' } = req.body;
       const file = req.file;
 
-      const result = await sendWhatsAppMessage(sessionId, jid, {
+      const result = await gateway.sendMessage(sessionId, jid, {
         text,
         file: file?.buffer,
         fileName: file?.originalname,
@@ -80,6 +118,25 @@ app.prepare().then(async () => {
       res.json({ success: true, messageId: result?.key.id });
     } catch (error: any) {
       console.error('API Send Error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  server.use('/api/v1', apiRouter);
+
+  // Legacy route for backward compatibility (optional)
+  server.post('/api/send', upload.single('file'), async (req, res) => {
+    try {
+      const { jid, text, sessionId = 'default-user' } = req.body;
+      const file = req.file;
+      const result = await gateway.sendMessage(sessionId, jid, {
+        text,
+        file: file?.buffer,
+        fileName: file?.originalname,
+        mimetype: file?.mimetype
+      });
+      res.json({ success: true, messageId: result?.key.id });
+    } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
   });
