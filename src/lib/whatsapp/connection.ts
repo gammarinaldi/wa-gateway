@@ -120,3 +120,24 @@ export const disconnectFromWhatsApp = async (sessionId: string) => {
     sessions.delete(sessionId);
   }
 };
+
+export const sendWhatsAppMessage = async (
+  sessionId: string, 
+  jid: string, 
+  content: { text?: string; file?: Buffer; fileName?: string; mimetype?: string }
+) => {
+  const sock = sessions.get(sessionId);
+  if (!sock) throw new Error('Session not found or not active');
+
+  if (content.file) {
+    const isImage = content.mimetype?.startsWith('image/');
+    return await sock.sendMessage(jid, {
+      [isImage ? 'image' : 'document']: content.file,
+      caption: content.text,
+      mimetype: content.mimetype,
+      fileName: content.fileName
+    });
+  } else {
+    return await sock.sendMessage(jid, { text: content.text || '' });
+  }
+};
