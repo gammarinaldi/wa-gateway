@@ -1,0 +1,122 @@
+import makeWASocket, { 
+  DisconnectReason, 
+  useMultiFileAuthState, 
+  Browsers, 
+  makeCacheableSignalKeyStore,
+  WASocket,
+  AuthenticationState,
+  ConnectionState,
+  fetchLatestWaWebVersion
+} from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
+import { PrismaClient } from '@prisma/client';
+import { createClient } from 'redis';
+import pino from 'pino';
+import { usePrismaAuthState } from './auth.js';
+import { Server } from 'socket.io';
+
+const logger = pino({ level: 'debug' });
+const prisma = new PrismaClient();
+
+let redisClient: any;
+
+const getRedisClient = async () => {
+  if (!redisClient) {
+    redisClient = createClient({ url: process.env.REDIS_URL });
+    await redisClient.connect();
+  }
+  return redisClient;
+};
+
+export const sessions = new Map<string, WASocket>();
+export const sessionStates = new Map<string, string>();
+
+export const connectToWhatsApp = async (sessionId: string, io: Server) => {
+  if (sessions.has(sessionId)) {
+    console.log(`Session ${sessionId} already exists, ending it before restart...`);
+    const oldSock = sessions.get(sessionId);
+    oldSock?.ev.removeAllListeners('connection.update');
+    oldSock?.end(undefined);
+    sessions.delete(sessionId);
+    sessionStates.delete(sessionId);
+  }
+
+  const { state, saveCreds } = await usePrismaAuthState(sessionId);
+  const { version, isLatest } = await fetchLatestWaWebVersion({});
+  console.log(`Using WA version: ${version.join('.')}, isLatest: ${isLatest}`);
+  
+  const redis = await getRedisClient();
+
+  console.log(`Starting WhatsApp connection for session: ${sessionId}`);
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: false,
+    logger,
+    version,
+    browser: ["Ubuntu", "Chrome", "20.0.04"],
+  });
+
+  sessions.set(sessionId, sock);
+
+  sock.ev.on('creds.update', saveCreds);
+
+  sock.ev.on('connection.update', async (update: Partial<ConnectionState>) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      console.log(`QR received for session: ${sessionId}`);
+      io.to(sessionId).emit('qr', qr);
+    }
+
+    if (connection === 'close') {
+      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      io.to(sessionId).emit('status', 'close');
+      
+      if (shouldReconnect) {
+        connectToWhatsApp(sessionId, io);
+      } else {
+        sessions.delete(sessionId);
+        sessionStates.delete(sessionId);
+        await prisma.session.delete({ where: { userId: sessionId } }).catch(() => {});
+        await prisma.key.deleteMany({ where: { sessionId } }).catch(() => {});
+      }
+    } else if (connection === 'open') {
+      sessionStates.set(sessionId, 'open');
+      io.to(sessionId).emit('status', 'open');
+    } else if (connection === 'connecting') {
+      sessionStates.set(sessionId, 'connecting');
+      io.to(sessionId).emit('status', 'connecting');
+    }
+  });
+
+  sock.ev.on('messages.upsert', async (m) => {
+    const msg = m.messages[0];
+    if (!msg.key.fromMe && m.type === 'notify') {
+      const content = msg.message?.conversation || 
+                      msg.message?.extendedTextMessage?.text || 
+                      msg.message?.imageMessage?.caption || "";
+      
+      const savedMsg = await prisma.message.create({
+        data: {
+          sessionId,
+          remoteJid: msg.key.remoteJid!,
+          pushName: msg.pushName || "Unknown",
+          content,
+          timestamp: new Date((msg.messageTimestamp as number) * 1000)
+        }
+      });
+
+      io.to(sessionId).emit('message', savedMsg);
+    }
+  });
+
+  return sock;
+};
+
+export const disconnectFromWhatsApp = async (sessionId: string) => {
+  const sock = sessions.get(sessionId);
+  if (sock) {
+    await sock.logout();
+    sessions.delete(sessionId);
+  }
+};

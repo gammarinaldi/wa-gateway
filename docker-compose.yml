@@ -1,0 +1,77 @@
+services:
+  dashboard-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: dashboard-app
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db-postgres:5432/wa_db
+      - REDIS_URL=redis://cache-redis:6379
+      - NODE_ENV=development
+      - SOCKET_PORT=3001
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:3001
+      - WATCHPACK_POLLING=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+      cache-redis:
+        condition: service_healthy
+    networks:
+      - wa_internal
+
+  db-postgres:
+    image: postgres:16-alpine
+    container_name: db-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=wa_db
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wa_internal
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  cache-redis:
+    image: redis:7-alpine
+    container_name: cache-redis
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wa_internal
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=password
+    ports:
+      - "5050:80"
+    depends_on:
+      - db-postgres
+    networks:
+      - wa_internal
+
+networks:
+  wa_internal:
+    driver: bridge
+
+volumes:
+  postgres_data:

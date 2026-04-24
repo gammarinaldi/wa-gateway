@@ -1,0 +1,182 @@
+:root {
+  --binance-yellow: #F0B90B;
+  --binance-gold: #FFD000;
+  --binance-dark: #222126;
+  --dark-card: #2B2F36;
+  --ink: #1E2026;
+  --slate: #848E9C;
+  --crypto-green: #0ECB81;
+  --crypto-red: #F6465D;
+  --border-light: #E6E8EA;
+  --pure-white: #FFFFFF;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background-color: var(--pure-white);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 32px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 48px;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--binance-yellow);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  background-color: var(--binance-yellow);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.card {
+  background: var(--pure-white);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: rgba(32, 32, 37, 0.05) 0px 3px 5px 0px;
+  transition: box-shadow 200ms ease;
+}
+
+.card:hover {
+  box-shadow: rgba(8, 8, 8, 0.05) 0px 3px 5px 5px;
+}
+
+.btn-primary {
+  background-color: var(--binance-yellow);
+  color: var(--ink);
+  border: none;
+  border-radius: 50px;
+  padding: 12px 32px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  font-size: 16px;
+}
+
+.btn-primary:hover {
+  background-color: #1EAEDB;
+  color: white;
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--binance-yellow);
+  border: 1px solid var(--binance-yellow);
+  border-radius: 50px;
+  padding: 12px 32px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  font-size: 16px;
+}
+
+.btn-secondary:hover {
+  background-color: #1EAEDB;
+  color: white;
+  border-color: #1EAEDB;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-open { background-color: rgba(14, 203, 129, 0.1); color: var(--crypto-green); }
+.status-connecting { background-color: rgba(240, 185, 11, 0.1); color: var(--binance-yellow); }
+.status-close { background-color: rgba(246, 70, 93, 0.1); color: var(--crypto-red); }
+.status-idle { background-color: #F5F5F5; color: var(--slate); }
+
+.qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.qr-placeholder {
+  width: 256px;
+  height: 256px;
+  background-color: #F5F5F5;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--slate);
+  border: 2px dashed var(--border-light);
+}
+
+.message-list {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.message-name { font-weight: 600; font-size: 14px; }
+.message-time { color: var(--slate); font-size: 12px; }
+.message-content { color: var(--ink); font-size: 14px; }
+
+.dark-section {
+  background-color: var(--binance-dark);
+  color: var(--pure-white);
+  padding: 64px 32px;
+  margin-top: 64px;
+  border-radius: 24px;
+}
+
+.light-section {
+  background-color: #F5F5F5;
+  color: var(--ink);
+  padding: 64px 32px;
+  margin-top: 64px;
+  border-radius: 24px;
+  border: 1px solid var(--border-light);
+}
+
+.dark-card {
+  background-color: var(--dark-card);
+  border: none;
+  color: var(--pure-white);
+}
