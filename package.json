@@ -34,12 +34,13 @@
     "build:server": "tsc src/server.ts --outDir dist --esModuleInterop --moduleResolution bundler --module esnext --target esnext --allowJs --skipLibCheck",
     "start": "NODE_ENV=production node dist/server.js",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "postinstall": "npx prisma generate",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
     "@prisma/client": "^6.0.0",
+    "prisma": "^6.0.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "axios": "^1.15.2",
     "dotenv": "^16.4.5",
@@ -71,7 +72,6 @@
     "eslint": "^8",
     "eslint-config-next": "15.0.3",
     "jest": "^30.3.0",
-    "prisma": "^6.0.0",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
