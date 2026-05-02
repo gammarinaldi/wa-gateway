@@ -127,7 +127,8 @@ For detailed documentation, see [API Walkthrough](docs/superpowers/api-walkthrou
 
 ## 🚢 Deployment
 
-For production deployment, you can use the multi-stage Docker build:
+### Local Docker Build
+For production deployment, you can use the multi-stage Docker build locally:
 
 ```bash
 # Build and start in production mode
@@ -135,6 +136,30 @@ docker-compose -f docker-compose.yml up --build -d
 ```
 
 The Dockerfile is optimized for production, using a lightweight Alpine image and pruning development dependencies to minimize the final image size.
+
+### Deployment with GHCR (Pre-built Image)
+
+You can use the pre-built image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/gammarinaldi/wa-gateway:latest
+```
+
+Or use it in your `docker-compose.yml`:
+
+```yaml
+services:
+  wa-gateway:
+    image: ghcr.io/gammarinaldi/wa-gateway:latest
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/db
+      - REDIS_URL=redis://cache:6379
+      - API_KEY=your_api_key
+      - WEBHOOK_URL=https://your-api.com/webhook
+```
 
 ---
 
