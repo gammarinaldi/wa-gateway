@@ -23,18 +23,39 @@ app.prepare().then(async () => {
     databaseUrl: process.env.DATABASE_URL
   });
 
-  const ioServer = createServer();
-  const io = new Server(ioServer, {
+  const io = new Server({
     cors: {
-      origin: "*",
+      origin: true, // Reflect origin for debugging
       methods: ["GET", "POST"]
     }
   });
 
   const server = createExpressApp(gateway, io);
+  
+  // Verbose Debug
+  server.use((req, res, next) => {
+    if (req.url.includes('socket.io')) {
+      console.log(`[SOCKET-HTTP] ${req.method} ${req.url}`);
+    } else if (req.url !== '/health') {
+      console.log(`[HTTP] ${req.method} ${req.url}`);
+    }
+    next();
+  });
+
+  server.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', socket: 'ready' });
+  });
+
   const httpServer = createServer(server);
+  io.attach(httpServer);
+
+  // Low-level engine logs
+  io.engine.on("connection_error", (err) => {
+    console.error(`[Socket-Engine] Connection Error:`, err.req.url, err.code, err.message);
+  });
 
   io.on('connection', (socket) => {
+    console.log(`[Socket] Client connected: ${socket.id}`);
     socket.on('join', async (sessionId) => {
       socket.join(sessionId);
       console.log(`User joined session: ${sessionId}`);
@@ -66,12 +87,9 @@ app.prepare().then(async () => {
     return handle(req, res);
   });
 
-  httpServer.listen(port, () => {
-    console.log(`> Ready on http://localhost:${port}`);
-  });
-
-  ioServer.listen(socketPort, () => {
-    console.log(`> Socket.io ready on http://localhost:${socketPort}`);
+  httpServer.listen(port, '0.0.0.0', () => {
+    console.log(`> Ready on http://0.0.0.0:${port}`);
+    console.log(`> Socket.io ready on same port`);
   });
 }).catch((err) => {
   console.error('Error starting server:', err);

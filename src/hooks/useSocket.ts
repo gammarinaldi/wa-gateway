@@ -8,7 +8,7 @@ export const useSocket = (sessionId: string) => {
   const [messages, setMessages] = useState<any[]>([]);
 
   useEffect(() => {
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || '';
     const socket = io(socketUrl);
     socketRef.current = socket;
 
